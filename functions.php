@@ -190,3 +190,51 @@ if ( defined( 'JETPACK__VERSION' ) ) {
 require get_template_directory() . '/inc/custom-theme-settings.php';
 require_once get_template_directory() . '/inc/class-tgm-plugin-activation.php';
 require_once get_template_directory() . '/inc/required-plugin.php';
+
+//var_dump(get_post_type()) ;
+
+
+function create_custom_table() {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'custom_table';
+
+    $charset_collate = $wpdb->get_charset_collate();
+
+    $sql = "CREATE TABLE $table_name (
+        id mediumint(9) NOT NULL AUTO_INCREMENT,
+        name varchar(50) NOT NULL,
+        email varchar(100) NOT NULL,
+        PRIMARY KEY (id)
+    ) $charset_collate;";
+
+    require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+    dbDelta($sql);
+}
+register_activation_hook(__FILE__, 'create_custom_table');
+function enqueue_custom_scripts() {
+    wp_enqueue_script('custom-ajax-script', get_template_directory_uri() . '/js/custom-ajax.js', array('jquery'), '1.0', true);
+    wp_localize_script('custom-ajax-script', 'custom_ajax_object', array('ajax_url' => admin_url('admin-ajax.php')));
+}
+add_action('wp_enqueue_scripts', 'enqueue_custom_scripts');
+add_action('wp_ajax_insert_custom_data', 'insert_custom_data');
+add_action('wp_ajax_nopriv_insert_custom_data', 'insert_custom_data');
+
+function insert_custom_data() {
+    global $wpdb;
+
+    $table_name = $wpdb->prefix . 'custom_table';
+    $name = sanitize_text_field($_POST['name']);
+    $email = sanitize_email($_POST['email']);
+
+    $wpdb->insert(
+        $table_name,
+        array(
+            'name' => $name,
+            'email' => $email,
+        ),
+        array('%s', '%s')
+    );
+
+    wp_die();
+}
+
